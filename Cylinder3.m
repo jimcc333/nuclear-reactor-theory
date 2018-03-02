@@ -33,11 +33,11 @@ end
 
 %% Global parameters
 MAX_ITS = 100;      % Max number of iteration steps
-TOLER = 0.00005;      % fractional tolerance for flux and k convergence
+TOLER = 0.00005;    % fractional tolerance for flux and k convergence
 % Material properties
-N_pb = 0.033;                               % *10^24 atoms/cm^3
-sigma_gamma_pb = 0.2;                       % barns
-sigma_tr_pb = 3.0;                          % barns
+N_pb = 0.033;                                   % *10^24 atoms/cm^3
+sigma_gamma_pb = 0.2;                           % barns
+sigma_tr_pb = 3.0;                              % barns
 
 N_u = 0.048;                                    % *10^24 atoms/cm^3
 
@@ -55,7 +55,7 @@ sigma_a_u238 = sigma_f_u238 + sigma_gamma_u238; % barns
 
 %% Cross sections
 % Fuel regions
-for i=1:2
+for i = 1:2
     % Macroscopic absorption x-s [1/cm]
     Sigma_a(i) = N_u * (x(i)*sigma_a_u235 + (1.-x(i))*sigma_a_u238);
     % Macroscopic transport x-s [1/cm]
@@ -69,13 +69,13 @@ for i=1:2
     % Diffusion coefficient [cm]
     D(i) = 1./3./Sigma_tr(i);
     % Diffusion area [cm^2]
-    LSquared(i)= D(i)/Sigma_a(i);
+    LSquared(i) = D(i)/Sigma_a(i);
 end
 % Outer region
     % Macroscopic absorption x-s [1/cm]
     Sigma_a(3) = N_pb*sigma_gamma_pb;
     % Macroscopic transport x-s [1/cm]
-    Sigma_tr(3)= N_pb*sigma_tr_pb;
+    Sigma_tr(3) = N_pb*sigma_tr_pb;
     % Diffusion coefficient [cm]
     D(3) = 1./3./Sigma_tr(3);
     % Diffusion area [cm^2]
@@ -93,26 +93,26 @@ A = zeros(NTotal);  % Start with an empty matrix where everything is zero
 % Using 'i' for region index and 'j' for mesh point
 
 % Since the quantity D/Delta^2 appears frequently assign it a variable
-for i=1:3
-    dd2(i)=D(i)/Delta/Delta;
+for i = 1:3
+    dd2(i) = D(i)/Delta/Delta;
 end
 
 % Internal mesh points in Region 1
-for j=2 : N(1)
+for j = 2:N(1)
     A(j,j-1) = -dd2(1)*(2.*(j-1)-1)/(2.*(j-1));
     A(j,j)   = 2.*dd2(1) + Sigma_a(1);
     A(j,j+1) = -dd2(1)*(2.*(j-1)+1)/(2.*(j-1));
 end
 
 % Internal mesh points in Region 2
-for j=N(1)+2 : N(1)+N(2)
+for j = N(1)+2:N(1)+N(2)
     A(j,j-1) = -dd2(2)*(2.*(j-1)-1)/(2.*(j-1));
     A(j,j)   = 2.*dd2(2) + Sigma_a(2);
     A(j,j+1) = -dd2(2)*(2.*(j-1)+1)/(2.*(j-1));
 end
 
 % Internal mesh points in Region 3
-for j=N(1)+N(2)+2 : N(1)+N(2)+N(3)
+for j = N(1)+N(2)+2 : N(1)+N(2)+N(3)
     A(j,j-1) = -dd2(3)*(2.*(j-1)-1)/(2.*(j-1));
     A(j,j)   = 2.*dd2(3) + Sigma_a(3);
     A(j,j+1) = -dd2(3)*(2.*(j-1)+1)/(2.*(j-1));
@@ -120,8 +120,8 @@ end
 
 %% Add boundary and interface conditions to matrix A
 % 1.  Symmetry
-A(1,1)=1;
-A(1,2)=-1;
+A(1,1) = 1;
+A(1,2) = -1;
 
 % 2.  Flux Matching - satisfied automatically since the rightmost mesh
 % point in region 1 is the same as the leftmost mesh point in region 2
@@ -150,12 +150,12 @@ A(N(1)+N(2)+N(3)+1,N(1)+N(2)+N(3)+1)=1;
 F = zeros(N(1)+N(2)+N(3)+1,1);
 
 % Fission source coefficients for interior mesh points in region 1 
-for j=2 : N(1)
+for j = 2:N(1)
     F(j) = NuSigma_f(1);
 end
 
 % Fission source coefficients for interior mesh points in region 2 
-for j=N(1)+2 : N(1)+N(2)
+for j = N(1)+2:N(1)+N(2)
     F(j) = NuSigma_f(2);
 end
 
@@ -163,9 +163,9 @@ end
 
 %% Iterative solution
 % Flux profile initial guess: This is called phi(0) in the text.
-phi_guess=zeros(N(1)+N(2)+N(3)+1,1);
-    % The final mesh point is left at zero below to satisfy the BCs
-for j=1 : N(1)+N(2)+N(3)  
+phi_guess = zeros(N(1)+N(2)+N(3)+1,1);
+% The final mesh point is left at zero below to satisfy the BCs
+for j = 1:N(1)+N(2)+N(3)  
     phi_guess(j) = 1;
 end
 
@@ -177,20 +177,20 @@ S_guess = F.*phi_guess;
 
 % Set up storage matrices for plotting of results later on
 phi_stored = zeros(N(1)+N(2)+N(3)+1,MAX_ITS);
-s_stored = zeros(N(1)+N(2)+N(3)+1,MAX_ITS);
-k_stored = zeros(MAX_ITS,1);
+s_stored   = zeros(N(1)+N(2)+N(3)+1,MAX_ITS);
+k_stored   = zeros(MAX_ITS,1);
 % Will compute and store the fission rate Sigma_f*phi as well, even
 % though it's not directly used in the finite difference solution.
 fiss_rate_stored = zeros(N(1)+N(2)+N(3)+1,MAX_ITS);
 
 phi_stored(:,1) = phi_guess;
-s_stored(:,1) = S_guess;
-k_stored(1) = k_guess;
-for j=1:N(1)+1
-    fiss_rate_stored(j,1)=phi_stored(j,1)*Sigma_f(1);
+s_stored(:,1)   = S_guess;
+k_stored(1)     = k_guess;
+for j = 1:N(1)+1
+    fiss_rate_stored(j,1) = phi_stored(j,1)*Sigma_f(1);
 end
-for j=N(1)+2:N(1)+N(2)+1
-    fiss_rate_stored(j,1)=phi_stored(j,1)*Sigma_f(2);
+for j = N(1)+2:N(1)+N(2)+1
+    fiss_rate_stored(j,1) = phi_stored(j,1)*Sigma_f(2);
 end
 fprintf('Iteration: %g (initial guess). k: %f\n',1,k_guess)
 
@@ -201,7 +201,7 @@ for iteration = 2:MAX_ITS
 % iteration of phi via: A*phi = F*phi_guess/k_guess (A*phi = S/k)
 phi = (A\S_guess)./k_guess;
 
-% Now we have a new and improved phi vector.  Calculate the fission source
+% Now we have a new and improved phi vector. Calculate the fission source
 % term and eigenvalue arising from this flux:
 S = F.*phi;
 
@@ -222,38 +222,38 @@ new_neut_prod_rate = new_neut_prod_rate + 1.0/4.0*pi*NuSigma_f(1)* ...
                      phi(1)*Delta*Delta;
 
 % Integrate over region 1 interior mesh points
-for j=2 : N(1)
+for j = 2:N(1)
 old_neut_prod_rate = old_neut_prod_rate + 2.0*pi*NuSigma_f(1)* ...
                      phi_guess(j)*(j-1)*Delta*Delta;
 new_neut_prod_rate = new_neut_prod_rate + 2.0*pi*NuSigma_f(1)* ...
                      phi(j)*(j-1)*Delta*Delta;    
 end
 
-% the mesh point sitting on the boundary between region 1 and region 2 is
+% The mesh point sitting on the boundary between region 1 and region 2 is
 % associated with a mesh interval that extends a distance Delta/2 into
 % region 1 and Delta/2 into region 2.  Account for this:
 
-%   portion of mesh interval j that belongs to region 1:
+% Portion of mesh interval j that belongs to region 1:
 j = N(1)+1;
 old_neut_prod_rate = old_neut_prod_rate + pi*NuSigma_f(1)* ...
                      phi_guess(j)*Delta*Delta*((j-1)-1./4.);
 new_neut_prod_rate = new_neut_prod_rate + pi*NuSigma_f(1)* ...
                      phi(j)*Delta*Delta*((j-1)-1./4.);  
-%   portion of mesh interval j that belongs to region 2:
+% Portion of mesh interval j that belongs to region 2:
 old_neut_prod_rate = old_neut_prod_rate + pi*NuSigma_f(2)* ...
                      phi_guess(j)*Delta*Delta*((j-1)+1./4.);
 new_neut_prod_rate = new_neut_prod_rate + pi*NuSigma_f(2)* ...
                      phi(j)*Delta*Delta*((j-1)+1./4.);
 
-% interior region 2 mesh points
-for j=N(1)+2 : N(1)+N(2)
+% Interior region 2 mesh points
+for j = N(1)+2:N(1)+N(2)
     old_neut_prod_rate = old_neut_prod_rate + 2.*pi*NuSigma_f(2)* ... 
                          phi_guess(j)*(j-1)*Delta*Delta;
     new_neut_prod_rate = new_neut_prod_rate + 2.*pi*NuSigma_f(2)* ...
                          phi(j)*(j-1)*Delta*Delta;    
 end
 
-% portion of mesh interval j that belongs to region 2:
+% Portion of mesh interval j that belongs to region 2:
 j = N(1)+N(2)+1;
 old_neut_prod_rate = old_neut_prod_rate + pi*NuSigma_f(2)* ...
                      phi_guess(j)*Delta*Delta*((j-1)-1./4.);
@@ -268,18 +268,18 @@ k = new_neut_prod_rate/old_neut_prod_rate*k_guess;
 
 % store the new values of k, S, phi and fission rate:
 phi_stored(:,iteration) = phi;
-s_stored(:,iteration) = S;
-k_stored(iteration) = k;
-for j=1:N(1)+1
+s_stored(:,iteration)   = S;
+k_stored(iteration)     = k;
+for j = 1:N(1)+1
     fiss_rate_stored(j,iteration) = phi_stored(j,iteration)*Sigma_f(1);
 end
-for j=N(1)+2:N(1)+N(2)+1
+for j = N(1)+2:N(1)+N(2)+1
     fiss_rate_stored(j,iteration) = phi_stored(j,iteration)*Sigma_f(2);
 end
 
-% check for convergence
+% Check for convergence
 converged = true;
-for j=1:length(S)
+for j = 1:length(S)
     if S_guess(j) > 0
         if (S(j)/S_guess(j) > 1.+TOLER) || (S(j)/S_guess(j) < 1.-TOLER)
             converged = false;
@@ -298,14 +298,13 @@ if(converged)
     break;
 end
 
-% otherwise, continue.  Use computed values of phi, s and k as starting
+% otherwise, continue. Use computed values of phi, s and k as starting
 % points for the next iteration:
-k_guess = k;
+k_guess   = k;
 phi_guess = phi;
-S_guess = S;
-
+S_guess   = S;
 end
-    
+
 disp('Convergence achieved.');
 
 %% Display some metrics about the case
