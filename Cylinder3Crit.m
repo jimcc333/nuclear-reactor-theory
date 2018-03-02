@@ -2,7 +2,7 @@ function [] = Cylinder3Crit(radius1, thickness2, thickness3, enrichment1, ...
     enrichment2, step_size, unknown_x_region)
 %% 3-REGION CONCENTRIC CYLINDRICAL INFINE REACTOR
 % Author: Cem Bagdatlioglu, 10/2017
-
+%
 %  This program finds the critical enrichment by solving the reactor 
 %  eqution for a 3-region infinite cylinder where the two inner zones 
 %  undergo fission and the outer region does not. The provided material 
@@ -41,13 +41,13 @@ end
 %% Global parameters
 MAX_INNER_ITS = 100;    % Max number of iteration steps to find phi
 MAX_OUTER_ITS = 50;     % Max number of iteration steps to find unknown enrichment
-TOLER = 0.005;      % fractional tolerance for flux and k convergence
-X_TOLER = 0.0001;   % fractional tolerance for enrichment convergence
+TOLER = 0.005;          % fractional tolerance for flux and k convergence
+X_TOLER = 0.0001;       % fractional tolerance for enrichment convergence
 
 % Material properties
-N_pb = 0.033;                               % *10^24 atoms/cm^3
-sigma_gamma_pb = 0.2;                       % barns
-sigma_tr_pb = 3.0;                          % barns
+N_pb = 0.033;                                   % *10^24 atoms/cm^3
+sigma_gamma_pb = 0.2;                           % barns
+sigma_tr_pb = 3.0;                              % barns
 
 N_u = 0.048;                                    % *10^24 atoms/cm^3
 
@@ -70,14 +70,13 @@ N(3) = round((R(3)-R(2))/Delta);
 NTotal = N(1)+N(2)+N(3)+1;  % including the mesh point at the origin
 
 % Storage arrays for k, flux, x
-k_outer = zeros(MAX_OUTER_ITS,1);
+k_outer   = zeros(MAX_OUTER_ITS,1);
 phi_outer = zeros(NTotal,MAX_OUTER_ITS);
-x_outer = zeros(MAX_OUTER_ITS,1);
+x_outer   = zeros(MAX_OUTER_ITS,1);
 x_outer(1) = x(unknown_x_region);   % Initial guess for enrichment
 
 %% Outer iterations
-for outer_iter=1:MAX_OUTER_ITS
-    
+for outer_iter = 1:MAX_OUTER_ITS
     %% Setup initial guess k and phi, and enrichment guess
     if outer_iter > 2
         % If this is not the first outer iteration, use the final flux and
@@ -85,7 +84,6 @@ for outer_iter=1:MAX_OUTER_ITS
         phi_guess = phi;
         k_guess = k;
         
-        % ---------
         % Interpolate the enrichment guess based on last two values
         dx_dk = (x_outer(outer_iter-1) - x_outer(outer_iter-2)) / ...
                 (k_outer(outer_iter-1) - k_outer(outer_iter-2));
@@ -103,7 +101,7 @@ for outer_iter=1:MAX_OUTER_ITS
         % If this is the very first or second outer iteration:
         % Flux profile initial guess
         phi_guess=zeros(N(1)+N(2)+N(3)+1,1);
-        for j=1 : N(1)+N(2)+N(3)  
+        for j = 1:N(1)+N(2)+N(3)  
             phi_guess(j) = 1;
         end
         k_guess = 1;
@@ -121,17 +119,17 @@ for outer_iter=1:MAX_OUTER_ITS
 
     %% Cross sections
     % Fuel regions
-    for i=1:2
+    for i = 1:2
         % Macroscopic absorption x-s [1/cm]
-        Sigma_a(i) = N_u * (x(i)*sigma_a_u235 + (1.-x(i))*sigma_a_u238);
+        Sigma_a(i)  = N_u * (x(i)*sigma_a_u235 + (1.-x(i))*sigma_a_u238);
         % Macroscopic transport x-s [1/cm]
         Sigma_tr(i) = N_u * (x(i)*sigma_tr_u235 + (1.-x(i))*sigma_tr_u238);
         % Macroscopic fission x-s [1/cm]
-        Sigma_f(i) = N_u * (x(i)*sigma_f_u235 + (1.-x(i))*sigma_f_u238);
+        Sigma_f(i)  = N_u * (x(i)*sigma_f_u235 + (1.-x(i))*sigma_f_u238);
         % Fission neutron production rate per unit flux 
         % == neutrons per fission * macroscopic fission cross section [1/cm]
         NuSigma_f(i) = N_u * (x(i)*nu_u235*sigma_f_u235 + ... 
-                                               (1.-x(i))*nu_u238*sigma_f_u238);  
+                                           (1.-x(i))*nu_u238*sigma_f_u238);  
         % Diffusion coefficient [cm]
         D(i) = 1./3./Sigma_tr(i);
         % Diffusion area [cm^2]
@@ -147,33 +145,32 @@ for outer_iter=1:MAX_OUTER_ITS
         % Diffusion area [cm^2]
         LSquared(3) = D(3)/Sigma_a(3);
 
-
     %% Build the inner regions of matrix A
-    A = zeros(NTotal);  % Start with an empty matrix where everything is zero
-
-    % Using 'i' for region index and 'j' for mesh point
+    % Start with an empty matrix where everything is zero
+    A = zeros(NTotal);  
 
     % Since the quantity D/Delta^2 appears frequently assign it a variable
-    for i=1:3
+    % (Using 'i' for region index and 'j' for mesh point)
+    for i = 1:3
         dd2(i)=D(i)/Delta/Delta;
     end
 
     % Internal mesh points in Region 1
-    for j=2 : N(1)
+    for j = 2:N(1)
         A(j,j-1) = -dd2(1)*(2.*(j-1)-1)/(2.*(j-1));
         A(j,j)   = 2.*dd2(1) + Sigma_a(1);
         A(j,j+1) = -dd2(1)*(2.*(j-1)+1)/(2.*(j-1));
     end
 
     % Internal mesh points in Region 2
-    for j=N(1)+2 : N(1)+N(2)
+    for j = N(1)+2:N(1)+N(2)
         A(j,j-1) = -dd2(2)*(2.*(j-1)-1)/(2.*(j-1));
         A(j,j)   = 2.*dd2(2) + Sigma_a(2);
         A(j,j+1) = -dd2(2)*(2.*(j-1)+1)/(2.*(j-1));
     end
 
     % Internal mesh points in Region 3
-    for j=N(1)+N(2)+2 : N(1)+N(2)+N(3)
+    for j = N(1)+N(2)+2:N(1)+N(2)+N(3)
         A(j,j-1) = -dd2(3)*(2.*(j-1)-1)/(2.*(j-1));
         A(j,j)   = 2.*dd2(3) + Sigma_a(3);
         A(j,j+1) = -dd2(3)*(2.*(j-1)+1)/(2.*(j-1));
@@ -181,42 +178,46 @@ for outer_iter=1:MAX_OUTER_ITS
 
     %% Add boundary and interface conditions to matrix A
     % 1.  Symmetry
-    A(1,1)=1;
-    A(1,2)=-1;
+    A(1,1) = 1;
+    A(1,2) = -1;
 
     % 2.  Flux Matching - satisfied automatically since the rightmost mesh
-    % point in region 1 is the same as the leftmost mesh point in region 2
+    %  point in region 1 is the same as the leftmost mesh point in region 2
 
     % 3.  Current Matching - Regions 1 and 2
-    if N(2) ~= 0    % region 2 could be zero thickness, in which case skip it 
-        A(N(1)+1,N(1)) = D(1);
+    
+    % Region 2 could be zero thickness, in which case skip it
+    if N(2) ~= 0     
+        A(N(1)+1,N(1))   = D(1);
         A(N(1)+1,N(1)+1) = -D(1)-D(2);
         A(N(1)+1,N(1)+2) = D(2);
     end
 
     % 4.  Flux Matching - satisfied automatically since the rightmost mesh
-    % point in region 2 is the same as the leftmost mesh point in region 3
+    %  point in region 2 is the same as the leftmost mesh point in region 3
 
     % 5.  Current Matching - Regions 2 and 3
-    if N(3) ~= 0   % region 3 could be zero thickness, in which case skip it
+    
+    % Region 3 could be zero thickness, in which case skip it
+    if N(3) ~= 0   
         A(N(1)+N(2)+1,N(1)+N(2)) = D(2);
         A(N(1)+N(2)+1,N(1)+N(2)+1) = -D(2)-D(3);
         A(N(1)+N(2)+1,N(1)+N(2)+2) = D(3);
     end
 
     % 6.  Vacuum 
-    A(N(1)+N(2)+N(3)+1,N(1)+N(2)+N(3)+1)=1;
+    A(N(1)+N(2)+N(3)+1,N(1)+N(2)+N(3)+1) = 1;
 
     %% Build fission source term S = F*phi/k 
     F = zeros(N(1)+N(2)+N(3)+1,1);
 
     % Fission source coefficients for interior mesh points in region 1 
-    for j=2 : N(1)
+    for j = 2:N(1)
         F(j) = NuSigma_f(1);
     end
 
     % Fission source coefficients for interior mesh points in region 2 
-    for j=N(1)+2 : N(1)+N(2)
+    for j = N(1)+2:N(1)+N(2)
         F(j) = NuSigma_f(2);
     end
 
@@ -228,75 +229,66 @@ for outer_iter=1:MAX_OUTER_ITS
 
     % Set up storage matrices for plotting of results later on
     phi_stored = zeros(N(1)+N(2)+N(3)+1,MAX_INNER_ITS);
-    s_stored = zeros(N(1)+N(2)+N(3)+1,MAX_INNER_ITS);
-    k_stored = zeros(MAX_INNER_ITS,1);
+    s_stored   = zeros(N(1)+N(2)+N(3)+1,MAX_INNER_ITS);
+    k_stored   = zeros(MAX_INNER_ITS,1);
     % Will compute and store the fission rate Sigma_f*phi as well, even
-    % though it's not directly used in the finite difference solution.
+    %  though it's not directly used in the finite difference solution.
     fiss_rate_stored = zeros(N(1)+N(2)+N(3)+1,MAX_INNER_ITS);
 
     phi_stored(:,1) = phi_guess;
-    s_stored(:,1) = S_guess;
-    k_stored(1) = k_guess;
-    for j=1:N(1)+1
-        fiss_rate_stored(j,1)=phi_stored(j,1)*Sigma_f(1);
+    s_stored(:,1)   = S_guess;
+    k_stored(1)     = k_guess;
+    for j = 1:N(1)+1
+        fiss_rate_stored(j,1) = phi_stored(j,1)*Sigma_f(1);
     end
-    for j=N(1)+2:N(1)+N(2)+1
-        fiss_rate_stored(j,1)=phi_stored(j,1)*Sigma_f(2);
+    for j = N(1)+2:N(1)+N(2)+1
+        fiss_rate_stored(j,1) = phi_stored(j,1)*Sigma_f(2);
     end
 
     %% Begin solution loops
     for iteration = 2:MAX_INNER_ITS
-    % given the values phi_guess and k_guess from the previous iteration (or
-    % the initial guesses if this is the first iteration), solve for the next
-    % iteration of phi via: A*phi = F*phi_guess/k_guess (A*phi = S/k)
+    % Solve for the next iteration of phi via: 
+    %  A*phi = F*phi_guess/k_guess (A*phi = S/k)
     phi = (A\S_guess)./k_guess;
 
-    % Now we have a new and improved phi vector.  Calculate the fission source
-    % term and eigenvalue arising from this flux:
+    % Now we have a new and improved phi vector.  Calculate the fission 
+    %  source term and eigenvalue arising from this flux:
     S = F.*phi;
 
     % Store the old and new neutron production rates
     new_neut_prod_rate = 0.;
     old_neut_prod_rate = 0.;
 
-    % Numerical integration, with dA = 2*pi*r dr.  Then int(dA NuSigma_f
-    % phi) over one mesh element (i.e. from (r_j-Delta/2) to (r_j+Delta/2))
-    % becomes 2*pi*NuSigma_f*phi(j)*j*Delta^2.
-
-    % the first mesh element is unique because it's located at r = 0.  So it
-    % only covers half the radius range of the others, i.e. we integrate from
-    % 0 to Delta/2:
+    % The first mesh element is unique because it's located at r = 0.  
+    % So it only covers half the radius range of the others, i.e.:
+    %  we integrate from 0 to Delta/2
     old_neut_prod_rate = old_neut_prod_rate + 1.0/4.0*pi*NuSigma_f(1)* ...
                          phi_guess(1)*Delta*Delta;
     new_neut_prod_rate = new_neut_prod_rate + 1.0/4.0*pi*NuSigma_f(1)* ...
                          phi(1)*Delta*Delta;
 
     % Integrate over region 1 interior mesh points
-    for j=2 : N(1)
+    for j = 2:N(1)
     old_neut_prod_rate = old_neut_prod_rate + 2.0*pi*NuSigma_f(1)* ...
                          phi_guess(j)*(j-1)*Delta*Delta;
     new_neut_prod_rate = new_neut_prod_rate + 2.0*pi*NuSigma_f(1)* ...
                          phi(j)*(j-1)*Delta*Delta;    
     end
 
-    % the mesh point sitting on the boundary between region 1 and region 2 is
-    % associated with a mesh interval that extends a distance Delta/2 into
-    % region 1 and Delta/2 into region 2.  Account for this:
-
-    %   portion of mesh interval j that belongs to region 1:
+    % Portion of mesh interval j that belongs to region 1
     j = N(1)+1;
     old_neut_prod_rate = old_neut_prod_rate + pi*NuSigma_f(1)* ...
                          phi_guess(j)*Delta*Delta*((j-1)-1./4.);
     new_neut_prod_rate = new_neut_prod_rate + pi*NuSigma_f(1)* ...
                          phi(j)*Delta*Delta*((j-1)-1./4.);  
-    %   portion of mesh interval j that belongs to region 2:
+    % Portion of mesh interval j that belongs to region 2
     old_neut_prod_rate = old_neut_prod_rate + pi*NuSigma_f(2)* ...
                          phi_guess(j)*Delta*Delta*((j-1)+1./4.);
     new_neut_prod_rate = new_neut_prod_rate + pi*NuSigma_f(2)* ...
                          phi(j)*Delta*Delta*((j-1)+1./4.);
 
-    % interior region 2 mesh points
-    for j=N(1)+2 : N(1)+N(2)
+    % Interior region 2 mesh points
+    for j = N(1)+2:N(1)+N(2)
         old_neut_prod_rate = old_neut_prod_rate + 2.*pi*NuSigma_f(2)* ... 
                              phi_guess(j)*(j-1)*Delta*Delta;
         new_neut_prod_rate = new_neut_prod_rate + 2.*pi*NuSigma_f(2)* ...
@@ -318,16 +310,16 @@ for outer_iter=1:MAX_OUTER_ITS
 
     % store the new values of k, S, phi and fission rate:
     phi_stored(:,iteration) = phi;
-    s_stored(:,iteration) = S;
-    k_stored(iteration) = k;
-    for j=1:N(1)+1
+    s_stored(:,iteration)   = S;
+    k_stored(iteration)     = k;
+    for j = 1:N(1)+1
         fiss_rate_stored(j,iteration) = phi_stored(j,iteration)*Sigma_f(1);
     end
-    for j=N(1)+2:N(1)+N(2)+1
+    for j = N(1)+2:N(1)+N(2)+1
         fiss_rate_stored(j,iteration) = phi_stored(j,iteration)*Sigma_f(2);
     end
 
-    % check for convergence
+    % Check for convergence
     converged = true;
     for j=1:length(S)
         if S_guess(j) > 0
@@ -340,16 +332,16 @@ for outer_iter=1:MAX_OUTER_ITS
         converged = false;
     end
 
-    % if converged is still equal to true, break out of the loop:
+    % If converged is still equal to true, break out of the loop:
     if(converged)
         break;
     end
 
-    % otherwise, continue.  Use computed values of phi, s and k as starting
-    % points for the next iteration:
-    k_guess = k;
+    % Otherwise, continue. Use computed values of phi, s and k as starting
+    %  points for the next iteration:
+    k_guess   = k;
     phi_guess = phi;
-    S_guess = S;
+    S_guess   = S;
 
     end
 
@@ -376,11 +368,10 @@ for outer_iter=1:MAX_OUTER_ITS
         break
     end
 
-    % continue to next iteration, unless it's at max iterations
+    % Continue to next iteration, unless it's at max iterations
     if outer_iter == MAX_OUTER_ITS
         fprintf('WARNING! Hit max iterations without convergence!')
     end
-
 end
 
 %% Display some metrics about the case
@@ -409,13 +400,13 @@ fprintf('Fuel flatness:             %.2f percent \n', 100*(1-flatness))
 % vector of mesh point radii (correct units). Used for plotting.
 r = linspace(0,R(3),round(R(3)/Delta)+1);
 
-% Plot flux, including previous iterations
-figure(2)
+% Fission rate
+figure(2) % Starting from 2 so that last plot that opens is figure 1
 clf reset;
 hold on;
 plot(r,fiss_rate_stored(:,iteration),'DisplayName','Final Rate', ...
      'LineWidth',2.0,'Color','r');
-max_y=max(max(fiss_rate_stored));
+max_y = max(max(fiss_rate_stored));
 set(gca,'XLim',[0 R(3)]);
 set(gca,'YLim',[0 max_y*1.1]);
 xlabel('Radial position r [cm]');
@@ -433,6 +424,7 @@ text(R(1)/100,max_y/50,t1,'Color','k');
 text(R(1)*101/100,max_y/50,t2,'Color','k');
 text(R(2)*101/100,max_y/50,'Reflector','Color','k');
 
+% Plot final flux
 figure(1)
 clf reset;
 hold on;
